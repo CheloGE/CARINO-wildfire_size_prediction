@@ -16,25 +16,30 @@ import pandas as pd
 from time import time
 from sklearn.metrics import f1_score, accuracy_score
 
-def feature_plot(importances, X_train, y_train):
+def feature_plot(importances, X_train, y_train, top_k=5):
     
     # Display the five most important features
     indices = np.argsort(importances)[::-1]
-    columns = X_train.columns.values[indices[:5]]
-    values = importances[indices][:5]
+    columns = X_train.columns.values[indices[:top_k]]
+    values = importances[indices][:top_k]
 
     # Creat the plot
-    fig = pl.figure(figsize = (9,5))
-    pl.title("Normalized Weights for First Five Most Predictive Features", fontsize = 16)
-    pl.bar(np.arange(5), values, width = 0.6, align="center", color = '#00A000', \
-          label = "Feature Weight")
-    pl.bar(np.arange(5) - 0.3, np.cumsum(values), width = 0.2, align = "center", color = '#00A0A0', \
-          label = "Cumulative Feature Weight")
-    pl.xticks(np.arange(5), columns)
-    pl.xlim((-0.5, 4.5))
-    pl.ylabel("Weight", fontsize = 12)
-    pl.xlabel("Feature", fontsize = 12)
+    fig = pl.figure(figsize = (15,20))
+    pl.title(f"Normalized Weights for First {top_k} Most Predictive Features", fontsize = 16)
+    #pl.bar(np.arange(top_k), values, width = 0.6, align="center", color = '#00A000', \
+    #      label = "Feature Weight")
+    pl.barh(np.arange(top_k), values[::-1], align="center", height=0.4, label = "Feature Weight")
+    #pl.bar(np.arange(top_k) - 0.3, np.cumsum(values), width = 0.2, align = "center", color = '#00A0A0', \
+    #      label = "Cumulative Feature Weight")
+    pl.barh(np.arange(top_k) - 0.3, np.cumsum(values)[::-1], height=0.4, align="center", label = "Cumulative Feature Weight") 
+            
+    pl.yticks(np.arange(top_k), columns[::-1])
+    pl.ylim((-0.5, top_k-.5))
+    pl.xlabel("Weight", fontsize = 12)
+    pl.ylabel("Feature", fontsize = 12)
     
-    pl.legend(loc = 'upper center')
+    pl.legend(loc = 'upper right')
     pl.tight_layout()
-    pl.show()  
+    pl.show()
+    
+    return pd.DataFrame({'Features':columns, 'Importance value':values})
