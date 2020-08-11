@@ -43,3 +43,21 @@ def feature_plot(importances, X_train, y_train, top_k=5):
     pl.show()
     
     return pd.DataFrame({'Features':columns, 'Importance value':values})
+
+def datetime_feature_engineering(df, inplace = False):
+    """
+        This function generates year, month and day for each datetime feature
+    """
+    date_indx = np.where(df.dtypes=='<M8[ns]')[0]
+    df_temp = df.copy(deep=True)
+    for i in date_indx:
+        curr_column = df_temp.columns[i]
+        df_temp[curr_column+"_Year"] = df_temp[curr_column].dt.year
+        df_temp[curr_column+"_Month"] = df_temp[curr_column].dt.month
+        df_temp[curr_column+"_Day"] = df_temp[curr_column].dt.day
+    
+    return df_temp.drop(list(df_temp.columns[date_indx]), 1, inplace=inplace)
+
+def oneHotEnc_to_classes(predictions, column_names):
+    class_dict = {0:column_names[0][-1], 1:column_names[1][-1], 2:column_names[2][-1], 3:column_names[3][-1], 4:column_names[4][-1]}
+    return np.vectorize(class_dict.get)(np.argmax(predictions, axis=1))
