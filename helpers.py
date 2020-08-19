@@ -14,7 +14,10 @@ import matplotlib.patches as mpatches
 import numpy as np
 import pandas as pd
 from time import time
+from sklearn.metrics import roc_auc_score
+from keras.callbacks import Callback
 from sklearn.metrics import f1_score, accuracy_score
+import pickle
 
 def feature_plot(importances, X_train, y_train, top_k=5):
     
@@ -44,7 +47,7 @@ def feature_plot(importances, X_train, y_train, top_k=5):
     
     return pd.DataFrame({'Features':columns, 'Importance value':values})
 
-def datetime_feature_engineering(df, inplace = False):
+def datetime_feature_engineering2(df, inplace = False):
     """
         This function generates year, month and day for each datetime feature
     """
@@ -58,6 +61,83 @@ def datetime_feature_engineering(df, inplace = False):
     
     return df_temp.drop(list(df_temp.columns[date_indx]), 1, inplace=inplace)
 
+def datetime_feature_engineering(df_temp, inplace = False):
+    """
+        This function generates new features based on datetime features
+    """
+    datetime_features = df_temp.columns[df_temp.dtypes=='<M8[ns]']
+    df = df_temp.copy(deep=True)
+    df['fire_duration'] = (df['ex_fs_date']-df['fire_start_date']).astype('timedelta64[m]')
+    #df['time_to_ex'] = (df['ex_fs_date']-df['bh_fs_date']).astype('timedelta64[m]')
+    #df['time_to_uc'] = (df['uc_fs_date']-df['fire_fighting_start_date']).astype('timedelta64[h]')
+    #df['time_to_bh'] = (df['bh_fs_date']-df['fire_fighting_start_date']).astype('timedelta64[h]')
+    df['fire_fight_response_time'] = (df['fire_fighting_start_date']-df['discovered_date']).astype('timedelta64[m]')
+    df['time_to_discover'] = (df['discovered_date']-df['fire_start_date']).astype('timedelta64[m]')
+    #df['time_to_report'] = (df['reported_date']-df['discovered_date']).astype('timedelta64[h]')
+    
+    return df.drop(datetime_features, 1, inplace=inplace)
+
 def oneHotEnc_to_classes(predictions, column_names):
     class_dict = {0:column_names[0][-1], 1:column_names[1][-1], 2:column_names[2][-1], 3:column_names[3][-1], 4:column_names[4][-1]}
     return np.vectorize(class_dict.get)(np.argmax(predictions, axis=1))
+
+def parse_datetime_features_to_hours(df_temp):
+    df = df_temp.copy(deep=True)
+    datetime_columns = df.columns[df.dtypes=='<M8[ns]']
+    for column in datetime_columns:
+        df[column]=(df[column]-(df[column].min())).astype('timedelta64[h]')
+    return df
+
+class RocCallback(Callback):
+    def __init__(self,training_data,validation_data):
+        self.x = training_data[0]
+        self.y = training_data[1]
+        self.x_val = validation_data[0]
+        self.y_val = validation_data[1]
+
+
+    def on_train_begin(self, logs={}):
+        return
+
+    def on_train_end(self, logs={}):
+        return
+
+    def on_epoch_begin(self, epoch, logs={}):
+        return
+
+    def on_epoch_end(self, epoch, logs={}):
+        y_pred_train = self.model.predict_proba(self.x)
+        roc_train = roc_auc_score(self.y, y_pred_train)
+        y_pred_val = self.model.predict_proba(self.x_val)
+        roc_val = roc_auc_score(self.y_val, y_pred_val)
+        print('\rroc-auc_train: %s - roc-auc_val: %s' % (str(round(roc_train,4)),str(round(roc_val,4))),end=100*' '+'\n')
+        return
+
+    def on_batch_begin(self, batch, logs={}):
+        return
+
+    def on_batch_end(self, batch, logs={}):
+        return
+    
+def fill_datetime_with_neighbors(df):
+    """
+        Fills datetime features with dates that are close to the closest feature
+    """
+    df.fire_fighting_start_date.fillna(df.assessment_datetime, inplace=True)
+    df.reported_date.fillna(df.fire_start_date, inplace=True)
+    df.discovered_date.fillna(df.reported_date, inplace=True)
+    df.fire_start_date.fillna(df.discovered_date, inplace=True)
+    
+def save_model(path, model_to_save):
+    """
+        path should end in *.pkl extension
+    """
+    with open(path,'wb') as f:
+        pickle.dump(model_to_save,f)
+        
+def load_model(path):
+    """
+        path should end in *.pkl extension
+    """
+    with open(path, 'rb') as f:
+        return pickle.load(f)
