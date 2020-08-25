@@ -121,6 +121,21 @@ class RocCallback(Callback):
     def on_batch_end(self, batch, logs={}):
         return
     
+class F1Callback(Callback):
+    def __init__(self,training_data,validation_data):
+        self.x = training_data[0]
+        self.y = training_data[1]
+        self.x_val = validation_data[0]
+        self.y_val = validation_data[1]
+    def  on_train_begin(self,logs={}):
+        self.f1_macro=[]
+    def on_epoch_end(self, epoch, logs=None):
+        y_pred_train=self.model.predict(self.x.reshape(-1,8,1)).round()
+        score_train=f1_score(self.y, y_pred_train, average='macro')
+        y_pred_val=self.model.predict(self.x_val.reshape(-1,8,1)).round()
+        score_val=f1_score(self.y_val, y_pred_val, average='macro')
+        print('\rf1_macro_train: %s - f1_macro_val: %s' % (str(round(score_train,4)),str(round(score_val,4))),end=100*' '+'\n')
+    
 def fill_datetime_with_neighbors(df):
     """
         Fills datetime features with dates that are close to the closest feature
